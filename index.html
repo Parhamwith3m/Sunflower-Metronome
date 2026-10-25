@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sunflower Metronome</title>
+<meta name="description" content="A sunflower-themed metronome with a swinging pendulum. 40-240 BPM, tap tempo, time signatures. Free, runs in your browser.">
+<meta name="theme-color" content="#FBF5E7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="sunflower.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Sunflower Metronome">
+<meta property="og:description" content="A sunflower-themed metronome with a swinging pendulum. Free, runs in your browser.">
+<style>
+:root{
+  --sun:#FFD84D;--gold:#E5A900;--honey:#D69B00;--butter:#FFF1B5;--cream:#FFFBEF;--soft:#FBF5E7;
+  --pale:#F3D66C;--light:#FFE9A0;--deep:#60471A;--dark:#59421A;--muted:#8A6B30;--border:#E6CD71;
+  --shadow:0 8px 24px rgba(96,71,26,.10);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;
+  padding:12px 0;background:var(--soft);color:var(--dark);
+  font-family:"Nunito Sans","Trebuchet MS",Arial,sans-serif;
+}
+.instrument{width:min(100% - 24px,440px);display:flex;flex-direction:column;align-items:center}
+.body-svg{width:84%;height:auto;display:block;filter:drop-shadow(0 8px 14px rgba(96,71,26,.18));position:relative;z-index:1}
+.panel{
+  width:100%;margin-top:-14px;padding:22px 20px 20px;position:relative;
+  background:linear-gradient(180deg,var(--butter),var(--light));
+  border:2px solid var(--border);border-bottom:8px solid var(--gold);
+  border-radius:24px;box-shadow:var(--shadow);
+  display:flex;flex-direction:column;gap:18px;
+}
+.head{display:flex;align-items:center;justify-content:space-between}
+h1{margin:0;font-size:30px;font-weight:800;color:var(--deep);letter-spacing:-.01em;line-height:1}
+button,select,input{font:inherit;color:var(--dark)}
+button{cursor:pointer;transition:background-color .16s ease,transform .12s ease,box-shadow .16s ease,border-color .16s ease}
+button:active:not(:disabled){transform:scale(.97)}
+button:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--deep);outline-offset:2px}
+.reset{
+  min-height:44px;padding:0 14px;display:inline-flex;align-items:center;gap:6px;
+  background:var(--cream);border:1.5px solid var(--border);border-radius:12px;font-size:14px;font-weight:700;
+}
+.reset:hover{background:#fff}
+.tempo{display:grid;grid-template-columns:60px 1fr 60px;align-items:center;gap:10px}
+.step{
+  height:52px;border-radius:14px;background:var(--pale);border:1.5px solid var(--border);
+  font-size:20px;font-weight:800;color:var(--dark);
+}
+.step:hover:not(:disabled){background:var(--sun)}
+.readout{display:flex;flex-direction:column;align-items:center}
+#bpm{
+  width:100%;max-width:170px;text-align:center;font-size:52px;font-weight:800;line-height:1.1;
+  color:var(--deep);font-variant-numeric:tabular-nums;
+  background:var(--cream);border:1.5px solid var(--border);border-radius:16px;padding:2px 6px;
+}
+.unit{font-size:13px;font-weight:600;color:var(--muted);margin-top:4px}
+.selects{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600;color:var(--muted)}
+select{
+  height:46px;padding:0 12px;border-radius:12px;background:var(--cream);
+  border:1.5px solid var(--border);font-size:15px;font-weight:600;width:100%;
+}
+.note{margin:-8px 0 0;font-size:12px;color:var(--muted);line-height:1.4}
+.tap{
+  min-height:48px;border-radius:12px;background:var(--cream);border:1.5px solid var(--border);
+  font-size:16px;font-weight:700;
+}
+.tap:hover{background:#fff}
+.tap.hit{background:var(--sun);border-color:var(--gold)}
+.go{
+  min-height:52px;border-radius:14px;border:0;background:var(--honey);color:#fff;
+  font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;
+  text-shadow:0 1px 0 rgba(96,71,26,.4);box-shadow:0 4px 0 #A87700;
+}
+.go:hover{background:#c78f00}
+.go svg{width:22px;height:22px;fill:currentColor}
+#msg{margin:0;padding:10px 12px;border-radius:12px;background:#fff;border:1.5px solid var(--gold);font-size:14px;font-weight:600;color:var(--deep)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:420px){
+  .panel{padding:20px 14px 16px;gap:16px}
+  #bpm{font-size:44px}
+  h1{font-size:26px}
+  .selects{gap:8px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}button:active:not(:disabled){transform:none}}
+</style>
+</head>
+<body>
+<main class="instrument">
+
+  <svg class="body-svg" viewBox="0 0 360 330" role="img" aria-label="Metronome with a sunflower swinging as the pendulum">
+    <defs>
+      <linearGradient id="shell" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE06A"/><stop offset="1" stop-color="#FFD03A"/></linearGradient>
+      <linearGradient id="inner" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF6CF"/><stop offset="1" stop-color="#FFE9A0"/></linearGradient>
+      <clipPath id="clip"><polygon points="130,34 230,34 320,306 40,306"/></clipPath>
+    </defs>
+    <polygon points="116,20 244,20 338,316 22,316" fill="#E5A900" stroke="#E5A900" stroke-width="20" stroke-linejoin="round"/>
+    <polygon points="116,20 244,20 338,316 22,316" fill="url(#shell)" stroke="url(#shell)" stroke-width="16" stroke-linejoin="round"/>
+    <polygon points="130,34 230,34 320,306 40,306" fill="url(#inner)" stroke="#E6CD71" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="6" y="312" width="348" height="18" rx="8" fill="#D69B00"/>
+    <rect x="6" y="312" width="348" height="5" rx="2.5" fill="#E5A900"/>
+    <g clip-path="url(#clip)">
+      <g transform="translate(180,46)">
+        <g id="pend">
+          <line x1="0" y1="0" x2="0" y2="150" stroke="#548447" stroke-width="5" stroke-linecap="round"/>
+          <path d="M0 62C14 42 36 44 42 54C32 68 12 70 0 62Z" fill="#709E53"/>
+          <path d="M3 62C14 55 26 53 36 54" stroke="#9DBE6C" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          <path d="M0 98C-12 80 -30 82 -36 90C-27 103 -10 105 0 98Z" fill="#709E53"/>
+          <path d="M-3 98C-12 92 -22 90 -31 91" stroke="#9DBE6C" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          <g id="flower" transform="translate(0,150)"></g>
+          <circle cx="0" cy="0" r="7" fill="#79502B" stroke="#51351E" stroke-width="2"/>
+          <circle cx="-2" cy="-2" r="2" fill="#A8733B"/>
+        </g>
+      </g>
+    </g>
+  </svg>
+
+  <section class="panel" aria-label="Metronome controls">
+    <div class="head">
+      <h1>sunflower.</h1>
+      <button class="reset" id="reset" type="button" aria-label="Reset metronome to 120 BPM in 4/4">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+        Reset
+      </button>
+    </div>
+
+    <div class="tempo">
+      <button class="step" id="minus" type="button" aria-label="Decrease tempo by 5 BPM">−5</button>
+      <div class="readout">
+        <input id="bpm" type="text" inputmode="numeric" autocomplete="off" maxlength="3" value="120" aria-label="Tempo in beats per minute, 40 to 240">
+        <span class="unit" aria-hidden="true">BPM</span>
+      </div>
+      <button class="step" id="plus" type="button" aria-label="Increase tempo by 5 BPM">+5</button>
+    </div>
+
+    <div class="selects">
+      <label class="field">Tempo marking
+        <select id="preset"></select>
+      </label>
+      <label class="field">Time signature
+        <select id="sig"></select>
+      </label>
+    </div>
+    <p class="note">Beats are counted in quarter notes, so 6/8 gives six clicks per bar.</p>
+
+    <button class="tap" id="tap" type="button">Tap tempo</button>
+    <button class="go" id="go" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="icon" d="M8 5v14l11-7z"/></svg><span id="label">Start metronome</span></button>
+    <p id="msg" role="status" aria-live="polite" hidden></p>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ---------- Configuration ----------
+     Each time signature is a list of accent levels, one per click (2 = strong, 1 = ordinary).
+     Simplification for this version: BPM counts quarter notes and the numerator is the click count,
+     so 6/8 and 7/8 are plain evenly spaced clicks. To add compound meters later, give an entry its
+     own pattern (e.g. 6/8 -> [2,1,1,2,1,1]) and a pulse length; the engine only reads this table. */
+  const MIN = 40, MAX = 240, LOOKAHEAD = 0.12, TICK_MS = 25;
+  const SIGS = {
+    '2/4': [2, 1], '3/4': [2, 1, 1], '4/4': [2, 1, 1, 1], '5/4': [2, 1, 1, 1, 1],
+    '6/8': [2, 1, 1, 1, 1, 1], '7/8': [2, 1, 1, 1, 1, 1, 1]
+  };
+  const PRESETS = [['Largo', 50], ['Adagio', 66], ['Andante', 80], ['Moderato', 108],
+                   ['Allegretto', 116], ['Allegro', 132], ['Vivace', 160], ['Presto', 184]];
+
+  const $ = id => document.getElementById(id);
+  const bpmEl = $('bpm'), minus = $('minus'), plus = $('plus'), presetEl = $('preset'), sigEl = $('sig'),
+        tapBtn = $('tap'), goBtn = $('go'), labelEl = $('label'), iconEl = $('icon'), msgEl = $('msg'),
+        pend = $('pend');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  /* ---------- Artwork: sunflower head ---------- */
+  (function drawFlower() {
+    let h = '';
+    for (let i = 0; i < 14; i++) h += `<ellipse cx="0" cy="-18" rx="7.5" ry="12" fill="#F4A900" transform="rotate(${i * 360 / 14 + 360 / 28})"/>`;
+    for (let i = 0; i < 14; i++) {
+      const r = i * 360 / 14;
+      h += `<ellipse cx="0" cy="-15.5" rx="6.5" ry="10.5" fill="#FFCC33" transform="rotate(${r})"/>` +
+           `<ellipse cx="-1.5" cy="-19" rx="1.5" ry="4.5" fill="#FFE680" opacity=".75" transform="rotate(${r})"/>`;
+    }
+    h += '<circle r="13" fill="#79502B" stroke="#51351E" stroke-width="2"/>';
+    for (let i = 0; i < 22; i++) {
+      const rad = Math.sqrt(i + .5) * 2.5, a = i * 2.399963;
+      h += `<circle cx="${(rad * Math.cos(a)).toFixed(2)}" cy="${(rad * Math.sin(a)).toFixed(2)}" r="1.2" fill="${i % 3 ? '#51351E' : '#A8733B'}"/>`;
+    }
+    $('flower').innerHTML = h;
+  })();
+
+  /* ---------- Populate selects ---------- */
+  presetEl.innerHTML = '<option value="">Choose…</option>' +
+    PRESETS.map(([n, b]) => `<option value="${b}">${n} (${b})</option>`).join('');
+  sigEl.innerHTML = Object.keys(SIGS).map(k => `<option value="${k}"${k === '4/4' ? ' selected' : ''}>${k}</option>`).join('');
+
+  /* ---------- State ---------- */
+  let ctx, master, bus, noiseBuf;
+  let timer = 0, raf = 0, epoch = 0, starting = false;
+  let bpm = 120, pattern = SIGS['4/4'];
+  let idx = 0, dir = -1;            // next unscheduled beat: index within measure, side (-1 left, +1 right)
+  let nextTime = 0, lastTime = 0;   // audio-clock time of the next unscheduled beat / last scheduled beat
+  let q = [];                       // scheduled beats not yet reached by the animation
+  let cur = { time: 0, angle: 0 };  // beat the pendulum most recently passed
+  let angle = 0, amp = reduced.matches ? 10 : 24;
+  let playing = false, paused = null, firstPending = false, smoothUntil = 0;
+  let taps = [];
+
+  const clamp = v => Math.min(MAX, Math.max(MIN, v));
+  const msg = t => { msgEl.hidden = !t; msgEl.textContent = t || ''; };
+  reduced.addEventListener('change', () => { amp = reduced.matches ? 10 : 24; });
+
+  /* ---------- Audio ---------- */
+  function newBus() {
+    if (bus) { try { bus.disconnect(); } catch (e) {} }
+    bus = ctx.createGain();
+    bus.connect(master);
+  }
+  function initAudio() {
+    if (ctx) return true;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) throw new Error('Web Audio unsupported');
+      ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = 0.8;
+      const comp = ctx.createDynamicsCompressor();
+      master.connect(comp); comp.connect(ctx.destination);
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      newBus();
+      ctx.onstatechange = () => {
+        if (playing && ctx.state !== 'running') msg('Audio was interrupted by the browser. Press Pause, then Resume to continue.');
+        else if (ctx.state === 'running') msg('');
+      };
+      return true;
+    } catch (e) {
+      ctx = null;
+      msg('Audio could not start in this browser. Please try a current version of Chrome, Firefox, Safari or Edge.');
+      return false;
+    }
+  }
+  // Short wooden tick: filtered noise transient + brief pitch-dropping resonance.
+  function click(t, level) {
+    const v = level === 2 ? 0.65 : 0.38;
+    const src = ctx.createBufferSource(); src.buffer = noiseBuf;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2200; bp.Q.value = 0.9;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(v, t + 0.001);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+    src.connect(bp); bp.connect(g); g.connect(bus);
+    src.start(t, Math.random() * 0.5); src.stop(t + 0.05);
+
+    const o = ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(1500, t);
+    o.frequency.exponentialRampToValueAtTime(800, t + 0.03);
+    const og = ctx.createGain();
+    og.gain.setValueAtTime(0, t);
+    og.gain.linearRampToValueAtTime(v * 0.5, t + 0.001);
+    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    o.connect(og); og.connect(bus);
+    o.start(t); o.stop(t + 0.06);
+  }
+
+  /* ---------- Scheduler (look-ahead; the audio clock is authoritative) ---------- */
+  function scheduler() {
+    const now = ctx.currentTime;
+    if (nextTime < now - 0.05) {          // tab was suspended: resync, never play a burst of missed clicks
+      nextTime = now + 0.1; idx = 0; q = []; cur = { time: now, angle }; firstPending = false;
+    }
+    while (nextTime < now + LOOKAHEAD) {
+      click(nextTime, pattern[idx]);
+      q.push({ time: nextTime, angle: dir * amp, idx, dir });
+      lastTime = nextTime; firstPending = false;
+      idx = (idx + 1) % pattern.length;
+      dir = -dir;
+      nextTime += 60 / bpm;
+    }
+  }
+
+  /* ---------- Pendulum rendering ---------- */
+  function setAngle(a) { angle = a; pend.setAttribute('transform', `rotate(${a.toFixed(2)})`); }
+  function frame() {
+    if (!playing) return;
+    const t = ctx.currentTime - (ctx.outputLatency || ctx.baseLatency || 0);
+    while (q.length && q[0].time <= t) cur = q.shift();
+    const next = q[0] || { time: nextTime, angle: dir * amp };
+    const span = Math.max(0.001, next.time - cur.time);
+    const p = Math.min(1, Math.max(0, (t - cur.time) / span));
+    const target = cur.angle + (next.angle - cur.angle) * (0.5 - 0.5 * Math.cos(Math.PI * p));
+    setAngle(performance.now() < smoothUntil ? angle + (target - angle) * 0.25 : target);
+    raf = requestAnimationFrame(frame);
+  }
+
+  /* ---------- Transport ---------- */
+  function paint() {
+    labelEl.textContent = playing ? 'Pause metronome' : paused ? 'Resume metronome' : 'Start metronome';
+    iconEl.setAttribute('d', playing ? 'M7 5h4v14H7zM13 5h4v14h-4z' : 'M8 5v14l11-7z');
+    goBtn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+  }
+  async function start() {
+    if (playing || starting) return;
+    starting = true;
+    const my = epoch;
+    try {
+      if (!initAudio()) return;
+      if (ctx.state !== 'running') await ctx.resume();
+      if (my !== epoch) return;
+      if (ctx.state !== 'running') { msg('The browser is blocking audio. Press Start again.'); return; }
+      msg('');
+      const now = ctx.currentTime;
+      newBus(); q = [];
+      cur = { time: now, angle };
+      if (paused) { idx = paused.idx; dir = paused.dir; nextTime = now + paused.remaining; }
+      else { idx = 0; dir = -1; nextTime = now + Math.max(0.12, Math.min(30 / bpm, 0.4)); }
+      paused = null; firstPending = true; playing = true;
+      clearInterval(timer); timer = setInterval(scheduler, TICK_MS);
+      cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
+      paint();
+    } catch (e) {
+      msg('Audio could not start. Check that your browser allows sound for this page.');
+    } finally { starting = false; }
+  }
+  function pause() {
+    if (!playing) return;
+    const now = ctx.currentTime;
+    clearInterval(timer); cancelAnimationFrame(raf);
+    const fut = q.find(b => b.time > now);       // first beat that has not sounded yet
+    const pendTime = fut ? fut.time : nextTime;
+    paused = {
+      idx: fut ? fut.idx : idx, dir: fut ? fut.dir : dir,
+      remaining: Math.min(60 / bpm, Math.max(0.06, pendTime - now))
+    };
+    newBus();                                     // silences anything already scheduled
+    q = []; playing = false; paint();
+  }
+  function reset() {
+    epoch++; starting = false;
+    clearInterval(timer); cancelAnimationFrame(raf);
+    if (ctx) newBus();
+    playing = false; paused = null; firstPending = false; q = []; idx = 0; dir = -1; taps = [];
+    pattern = SIGS['4/4']; sigEl.value = '4/4';
+    setBpm(120);
+    setAngle(0); cur = { time: 0, angle: 0 };
+    msg(''); paint();
+  }
+
+  /* ---------- Tempo ---------- */
+  function setBpm(v) {
+    bpm = clamp(Math.round(v));
+    bpmEl.value = bpm;
+    presetEl.value = PRESETS.some(p => p[1] === bpm) ? String(bpm) : '';
+    minus.disabled = bpm <= MIN; plus.disabled = bpm >= MAX;
+    if (playing && !firstPending) {   // adopt the new tempo on the very next beat, no restart
+      nextTime = Math.max(lastTime + 60 / bpm, ctx.currentTime + 0.005);
+      smoothUntil = performance.now() + 250;
+    }
+  }
+  function commitInput() {
+    const n = parseInt(bpmEl.value, 10);
+    if (Number.isNaN(n)) bpmEl.value = bpm; else setBpm(n);
+  }
+
+  /* ---------- Events ---------- */
+  goBtn.addEventListener('click', () => (playing ? pause() : start()));
+  $('reset').addEventListener('click', reset);
+  minus.addEventListener('click', () => setBpm(bpm - 5));
+  plus.addEventListener('click', () => setBpm(bpm + 5));
+  bpmEl.addEventListener('input', () => { bpmEl.value = bpmEl.value.replace(/\D/g, '').slice(0, 3); });
+  bpmEl.addEventListener('change', commitInput);
+  bpmEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { commitInput(); bpmEl.blur(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setBpm(bpm + 1); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); setBpm(bpm - 1); }
+  });
+  bpmEl.addEventListener('focus', () => bpmEl.select());
+  presetEl.addEventListener('change', () => { if (presetEl.value) setBpm(Number(presetEl.value)); });
+  sigEl.addEventListener('change', () => {
+    pattern = SIGS[sigEl.value];
+    idx = 0;                                   // the next unscheduled click opens a fresh, accented measure
+    if (paused) paused.idx = 0;
+  });
+  tapBtn.addEventListener('click', () => {
+    tapBtn.classList.add('hit'); setTimeout(() => tapBtn.classList.remove('hit'), 140);
+    const now = performance.now(), last = taps[taps.length - 1];
+    if (last !== undefined) {
+      if (now - last > 2000) taps = [];                // long pause: start a new tapping run
+      else if (now - last < 150) return;               // accidental double tap
+    }
+    taps.push(now);
+    if (taps.length > 6) taps.shift();
+    if (taps.length < 2) return;
+    const iv = taps.slice(1).map((t, i) => t - taps[i]).sort((a, b) => a - b);
+    const med = iv.length % 2 ? iv[(iv.length - 1) / 2] : (iv[iv.length / 2 - 1] + iv[iv.length / 2]) / 2;
+    setBpm(60000 / med);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && playing && ctx && ctx.state !== 'running') ctx.resume().catch(() => {});
+  });
+
+  setBpm(120); setAngle(0); paint();
+})();
+</script>
+</body>
+</html>
